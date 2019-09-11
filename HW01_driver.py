@@ -3,9 +3,11 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 
 from geostats_functions import cov
 from geostats_functions import rho
+from geostats_functions import extract_pairs
 
 
 #load data
@@ -16,7 +18,7 @@ res = 'Water Resisitivity ohm-m'
 perm = 'Permeability (mD)'
 data= pd.read_excel(filename)
 
-data = data[:5]
+#data = data[:5]
 
 #Problem 1
 plt.plot(data[res],data[perm],'.')
@@ -27,3 +29,5 @@ variables = [res,perm]
 
 covariance = cov(data,variables)
 pearson_rho = rho(data,variables)
+
+pairs = extract_pairs(data,x,y,variables)

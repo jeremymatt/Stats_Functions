@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
+import numpy as np
+import math
 
 def cov(data,variables):
     """
@@ -49,17 +51,29 @@ def rho(data,variables):
     rho = covariance/(std1*std2)
     return rho
     
-def select_lag(data,x,y,lag,theta):
+def extract_pairs(data,x,y,variables):
     """
     Returns a subset based on a lag and angle
     """
     deltas = pd.DataFrame()
-    for i in range(len(data)):
+    for i in range(len(data)-1):
+        print('collecting deltas, i={}'.format(i))
         temp = pd.DataFrame()
         cur_x = data.loc[i,x]
         cur_y = data.loc[i,y]
         temp['dx'] = data.loc[i+1:,x]-cur_x
         temp['dy'] = data.loc[i+1:,y]-cur_y
-        deltas.append(temp)
+        for var in variables:
+            temp['head|'+var] = data.loc[i,var]
+            temp['tail|'+var] = data.loc[i+1,var]
+        
+        deltas = deltas.append(temp)
     
+    deltas.reset_index(drop=True,inplace=True)
+    deltas.insert(2,'dist',value=np.nan)
+    deltas['dist'] = (deltas['dx']**2+deltas['dy']**2)**.5
+    deltas.insert(2,'theta',value=np.nan)
+    deltas['theta'] = np.arctan2(deltas['dy'],deltas['dx'])*180/np.pi
     
+    return deltas
+  
