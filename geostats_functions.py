@@ -63,6 +63,22 @@ def extract_pairs(data,x,y,variables):
     """
     Returns all pairs of points (forward and reverse) and the heads and tails 
     for each variable in the variables list
+    
+    INPUTS
+        data - pandas dataframe containing the data
+        x,y - the names of the columns containing the x and y coordinates
+        variables - list of the variable names
+        
+    OUTPUT
+        deltas - pandas dataframe containing all pairs of data points in both
+                directions (i,j and j,i).  The data returned:
+                    1. The dx and dy values
+                    2. The euclidean distance
+                    3. The angle in degrees
+                    4. The parameter values for the head and tail for all 
+                        variables specified 
+                    
+        
     """
     #Initialize an empty pandas dataframe
     deltas = pd.DataFrame()
@@ -114,6 +130,24 @@ def extract_lags(pairs,lag,theta,variable):
     """
     Extracts pairs that match the lag and angle and returns only the head 
     and tail for the specified variable
+    
+    INPUTS
+        pairs - pandas dataframe containing all pairs of data points in both
+                directions (i,j and j,i). The output of the extract_pairs() 
+                function.  Includes the following
+                    1. The dx and dy values
+                    2. The euclidean distance
+                    3. The angle in degrees
+                    4. The parameter values for the head and tail for one or
+                        more variables
+        lag - the lag distance of interest
+        theta - the direction of interest
+        variable - the variable for which to return the head and tail vals
+        
+    OUTPUT
+        lag_pairs - pandas dataframe containing only pairs that match the
+                    specified lag and theta.  The data for the specified 
+                    variable are placed in 'head' and 'tail' columns
     """
     
     #create a mask of pairs where the distance equals the lag
@@ -134,10 +168,21 @@ def extract_lags(pairs,lag,theta,variable):
 def SV(data,variables):
     """
     Calculates and returns the semivariance between two variables
+    
+    INPUTS
+        data - pandas dataframe containing the data
+        variables - list of the variable names
+        
+    OUTPUT
+        SV - the semivariance calculated from the data
     """
-    #Find the size of the 
+    #Find the number of input feature vectors
     N = data.shape[0]
+    #Calculate the squares of the differences
     squares = (data[variables[0]]-data[variables[1]])**2
+    #sum the squares
     sum_squares = squares.sum()
+    #Normalize by twice the number of input feature vectors
     SV = sum_squares/(2*N)
+    
     return SV
