@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
+#Author: Jeremy Matt
+#Date: 9/16/19
 import pandas as pd
 import numpy as np
-import math
+import matplotlib.pyplot as plt
+import matplotlib as mpl
 
 def cov(data,variables):
     """
@@ -13,13 +16,13 @@ def cov(data,variables):
         
     OUTPUT
         covariance
-        
     """
     #Calculate the means of each of the variables
     means = data[variables].mean()
     
     #Calculate the product of the differences from the means
-    cov = (data[variables[0]]-means[variables[0]])*(data[variables[1]]-means[variables[1]])
+    cov = (data[variables[0]]-means[variables[0]])*(data[variables[1]]-
+          means[variables[1]])
     #Normalize by N
     cov = cov.mean()
     
@@ -76,9 +79,7 @@ def extract_pairs(data,x,y,variables):
                     2. The euclidean distance
                     3. The angle in degrees
                     4. The parameter values for the head and tail for all 
-                        variables specified 
-                    
-        
+                        variables specified
     """
     #Initialize an empty pandas dataframe
     deltas = pd.DataFrame()
@@ -186,3 +187,41 @@ def SV(data,variables):
     SV = sum_squares/(2*N)
     
     return SV
+
+def plot_data(data,x,y,variable,cmap,display_fig=True):
+    """
+    Plots an x-y scatterplot of the data where color indicates the variable
+    value at the point
+    
+    INPUTS
+        data - pandas dataframe containing the data
+        x,y - the names of the columns containing the x and y coordinates
+        variable - The variable to plot
+        display_fig - Display to screen only.  Provide filename to save to file
+    """
+    
+    #Extract the variable values
+    z = data[variable]
+    
+    #Initialize the figure
+    fig,ax = plt.subplots(figsize=(10,4))
+    
+    #Create the color map
+    normalize = mpl.colors.Normalize(vmin=min(z), vmax=max(z))
+    colors = [cmap(normalize(value)) for value in z]
+    
+    #Plot the values, label the axes, add title, add color bar
+    ax.scatter(data[x],data[y],color=colors,)
+    plt.xlabel('x (mm)')
+    plt.ylabel('y (mm)')
+    plt.title(variable)
+    #Set the axes scales to be equal
+    plt.axis('equal')
+    #Add the colorbar
+    cax, _ = mpl.colorbar.make_axes(ax)
+    cbar = mpl.colorbar.ColorbarBase(cax, cmap=cmap, norm=normalize)
+    
+    if display_fig:
+        fig.savefig(display_fig, bbox_inches="tight")
+        plt.close()
+        print('plotting to scatter plot of {} to file'.format(variable))
