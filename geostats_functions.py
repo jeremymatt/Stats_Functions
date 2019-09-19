@@ -143,13 +143,20 @@ def extract_lags(pairs,lag,theta,variable):
                         more variables
         lag - the lag distance of interest
         theta - the direction of interest
-        variable - the variable for which to return the head and tail vals
+        variable - the variable(s) for which to return the head and tail vals
+                If two parameters are passed, the zero-index is the head and
+                the one-index is the tail.
         
     OUTPUT
         lag_pairs - pandas dataframe containing only pairs that match the
                     specified lag and theta.  The data for the specified 
                     variable are placed in 'head' and 'tail' columns
     """
+    
+    #If only a single variable is passed, set both the head and tail variable
+    #to the same value
+    if len(variable)==1:
+        variable = [variable,variable]
     
     #create a mask of pairs where the distance equals the lag
     m1 = pairs['dist']==lag
@@ -161,8 +168,8 @@ def extract_lags(pairs,lag,theta,variable):
     #Extract the dx, dy, distance, and theta columns
     lag_pairs = pd.DataFrame(lag_pairs_all[['dx','dy','dist','theta']])
     #Extract the variable values for the head and tail
-    lag_pairs['head'] = lag_pairs_all['head|'+variable]
-    lag_pairs['tail'] = lag_pairs_all['tail|'+variable]
+    lag_pairs['head'] = lag_pairs_all['head|'+variable[0]]
+    lag_pairs['tail'] = lag_pairs_all['tail|'+variable[1]]
     
     return lag_pairs
   
