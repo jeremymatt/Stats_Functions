@@ -56,6 +56,7 @@ col_headers = ['head','tail']
 #parameter for which to generate hh plots
 #res on the x-axis (near) and perm on the y-axis (far)
 parameter = [res,perm]
+parameter = [perm,res]
 
 #Build a data structure to hold the results
 #Init an empty dict
