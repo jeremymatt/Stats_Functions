@@ -22,13 +22,11 @@ mpl.rcParams['font.size'] = 10
 mpl.rcParams['axes.grid'] = True
 
 #name of the datafile
-filename = 'Burea_subset.xls'
+filename = 'test_data.xls'
 #Names of the x,y coordinate columns
-x = 'x (mm)'
-y = 'y (mm)'
-#names of the variable data columns
-res = 'Water Resisitivity ohm-m'
-perm = 'Permeability (mD)'
+x = 'x'
+y = 'y'
+
 #load data into a pandas dataframe
 try: data
 except: 
@@ -36,7 +34,7 @@ except:
     print('loading data')
 
 #make a list of the variable names to pass to functions
-variables = [res,perm]
+variables = ['val']
 
 #Generate a pandas dataframe of all pairs of data.  Note: both (i,j) and (j,i)
 #pairs are included

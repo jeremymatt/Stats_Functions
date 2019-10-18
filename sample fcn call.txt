@@ -1,0 +1,49 @@
+#The exponential model parameters
+sill = 15
+rng = 10
+nugget = 0
+gram_type = 'SV'
+
+
+#dist_mat is the matrix of distances from all known points to all other known points
+
+#This initializes the FIT_EXPONENTIAL class and stores the sill, range, nugget, and gram-type in the 'self' dictionary.  The 'model' object can be passed to other functions
+model = FIT_EXPONENTIAL(sill,rng,nugget,gram_type)
+
+
+#This calls the 'fit' function in the FIT_EXPONENTIAL class.  In this case, dist_mat passes in 
+#the distances matrix and the model.fit() call returns the semivariance, covariance, or correlation depending on the gram-type parameter.
+#The shape of C_ij will be the same as the shape of dist_mat
+C_ij = model.fit(dist_mat)
+
+
+n_pts = C_ij.shape[0]
+#add row of 1's
+C_ij = np.row_stack((C_ij,np.ones(n_pts)))
+#add column of 1's
+C_ij = np.column_stack((C_ij,np.ones(n_pts+1)))
+#set lower right corner to 0
+C_ij[-1,-1]=0
+#Convert to a matrix to access matrix calculation functions
+C_ij = np.matrix(C_ij)
+
+#xx and yy are 2D arrays of grid points
+xx,yy = make_meshgrid(data[x],data[y],h=0.2)
+
+#.ravel() converts from a 2D array to a 1D vector
+grid_points = list(zip(xx.ravel(),yy.ravel()))
+
+
+#Run the ordinary kriging function
+Z,EV = ordinary_kriging(data,x,y,grid_points,model)
+
+
+#Initialize a figure
+fig,ax = plt.subplots(figsize=(8,8))
+#Plot the contours
+plot_contours(ax,Z,xx,yy,cmap=plt.cm.viridis,alpha=0.8)
+#Plot the points
+ax.scatter(data[x],data[y],c='y',s=80,edgecolors='k')
+#label the points with data values
+for i,txt in enumerate(data['val']):
+    plt.annotate(str(txt),(data[x][i],data[y][i]))

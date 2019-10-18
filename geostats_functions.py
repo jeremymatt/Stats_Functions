@@ -29,6 +29,30 @@ def cov(data,variables):
     
     return cov
 
+
+  
+def COV_by_pair(data,variables):
+    """
+    Calculates and returns the pair-by-pair covariance between two variables
+    
+    INPUTS
+        data - pandas dataframe containing the data
+        variables - list of the variable names
+        
+    OUTPUT
+        cov - the covariance calculated from the data
+    """
+    #Calculate the means of each of the variables
+    means = data[variables].mean()
+    
+    #Calculate the product of the differences from the means
+    cov = (data[variables[0]]-means[variables[0]])*(data[variables[1]]-
+          means[variables[1]])
+    
+    data['COV'] = cov
+    
+    return data
+
 def std(data,variable):
     """
     calculates the standard deviation 
@@ -578,26 +602,44 @@ def bin_divs2inds(df,bin_divs,on_col = 'distance',remove_empty=True):
   
     return bin_inds
 
-def fit_exponential(x_vals,sill,rng,nugget):
-    """
-    Fits an exponential model given parameters from the semivariogram
-    
-    INPUTS
-        x_vals - numpy array of 'x' values at which to calculate the model
-        sill - the point at which the semivariogram plateaus
-        rng - the point at which autocorrelation plateaus
-        nugget - the y-intercept of the model. The semivariance of samples 
-                collected at very short distances
-    
-    OUTPUTS
-        expon - the exponential model
-    """
-    #Calculate the partial sill
-    c1 = sill-nugget
-    #calculate the model y-values
-    expon = nugget+c1*(1-np.exp(-3*np.abs(x_vals)/rng))
-    
-    return expon
+class FIT_EXPONENTIAL:
+    def __init__(self,sill,rng,nugget,gram_type):
+        self.sill = sill
+        self.rng = rng
+        self.nugget = nugget
+        self.gram_type = gram_type
+        self.c1 = sill-nugget
+        
+    def fit(self,x_vals):
+        """
+        Fits an exponential model given parameters from the semivariogram
+        
+        INPUTS
+            x_vals - numpy array of 'x' values at which to calculate the model
+            sill - the point at which the semivariogram plateaus
+            rng - the point at which autocorrelation plateaus
+            nugget - the y-intercept of the model. The semivariance of samples 
+                    collected at very short distances
+            gram_type - the type of ___gram being generated ('SV','COV','COR')
+        
+        OUTPUTS
+            expon - the exponential model
+        """
+        
+        exponent = np.exp(-3*np.abs(x_vals)/self.rng)
+        
+        if self.gram_type == 'SV':
+            #calculate the model y-values
+            expon = self.nugget+self.c1*(1-exponent)
+        elif self.gram_type == 'COV':
+            expon = self.c1*exponent
+        elif self.gram_type == 'COR':
+            expon = self.c1*exponent/(self.sill)
+        else:
+            print('ERROR - invalid gram type')
+            expon = np.nan
+        
+        return expon
 
 def fit_gaussian(x_vals,sill,rng,nugget):
     """
@@ -686,4 +728,70 @@ def plot_model_fit(data,model,labels,title):
     #save the figure
     plt.savefig('sample_{}_fit.png'.format(model_name))
     
+def dist_to_target(data,x,y,target):
+    """
+    Generates a distance matrix from the target to all other points
     
+    """
+    
+    distances = np.sqrt((data[x]-target[0])**2+(data[y]-target[1])**2)
+    return distances
+
+def gen_dist_matrix(data,x,y):
+    """
+    Generates a distance matrix from each point to all other points
+    """
+    
+    n_pts = data.shape[0]
+    dist_mat = np.zeros([n_pts,n_pts])
+    for i in range(n_pts):
+        x_i = data[x][i]
+        y_i = data[y][i]
+        for j in range(i+1,n_pts):
+            x_j = data[x][j]
+            y_j = data[y][j]
+            dist = np.sqrt((x_i-x_j)**2+(y_i-y_j)**2)
+            dist_mat[i,j] = dist
+            dist_mat[j,i] = dist
+            
+    return dist_mat
+
+#Source:
+#https://scikit-learn.org/0.20/auto_examples/svm/plot_iris.html
+def make_meshgrid(x, y, h=.02):
+    """Create a mesh of points to plot in
+
+    Parameters
+    ----------
+    x: data to base x-axis meshgrid on
+    y: data to base y-axis meshgrid on
+    h: stepsize for meshgrid, optional
+
+    Returns
+    -------
+    xx, yy : ndarray
+    """
+    x_min, x_max = x.min() - 1, x.max() + 1
+    y_min, y_max = y.min() - 1, y.max() + 1
+    xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
+                         np.arange(y_min, y_max, h))
+    return xx, yy
+
+
+#Source:
+#https://scikit-learn.org/0.20/auto_examples/svm/plot_iris.html
+def plot_contours(ax, Z, xx, yy, **params):
+    """Plot the decision boundaries for a classifier.
+
+    Parameters
+    ----------
+    ax: matplotlib axes object
+    clf: a classifier
+    xx: meshgrid ndarray
+    yy: meshgrid ndarray
+    params: dictionary of params to pass to contourf, optional
+    """
+    Z = np.matrix(Z)
+    Z = Z.reshape(xx.shape)
+    out = ax.contourf(xx, yy, Z, **params)
+    return out       
