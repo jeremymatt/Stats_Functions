@@ -14,36 +14,25 @@ import time
 from geostats_functions import *
 
 
-#Flag to toggle display of figures to the console
-plt_to_file_only = False
-
 #set plotting defaults
 mpl.rcParams['font.size'] = 10
 mpl.rcParams['axes.grid'] = True
 
 #name of the datafile
-filename = 'test_data.xls'
+filename = 'test_data1.xls'
 #Names of the x,y coordinate columns
 x = 'x'
 y = 'y'
 
-#load data into a pandas dataframe
-#try: data
-#except: 
-#    data= pd.read_excel(filename)
-#    print('loading data')
-    
 data= pd.read_excel(filename)
 
 #make a list of the variable names to pass to functions
 variables = ['val']
 
-#Generate a pandas dataframe of all pairs of data.  Note: both (i,j) and (j,i)
-#pairs are included
+#Generate a pandas dataframe of all pairs of data.  
 #Set the function to return the unordered set of pairs
 unordered=True
-try: pairs
-except: pairs = extract_pairs(data,x,y,variables,unordered)
+pairs = extract_pairs(data,x,y,variables,unordered)
 
 #Generate variable names to grab the correct columns from the pairs structure
 variable = ['val','val']
@@ -57,44 +46,6 @@ differences = pd.DataFrame(data_sv[['dist','COV']])
 #Rename the dist and SV columns to generic names to work with the semivariogram
 #functions
 differences.rename(columns={'dist':'distance','COV':'delta'},inplace=True)
-#
-##Labels for the x and y axes of the plots
-#labels = {}
-#labels['xlabel'] = '$\Delta$'
-#labels['ylabel'] = 'semivariance'
-#
-##Set the binning mode type:
-#    #Bins of an equal distance width
-#    #The number of bins equal to the square root of the number of points
-#sv_mode = {'bins':'sqrt','mode':'eq.dist'}
-#
-##Call the semivariogram generation function
-#sv_x,sv_y = generate_semivariogram(differences,labels,sv_mode)
-#N = differences.shape[0]
-#
-##Store the binned semivariogram data in a tuple to
-#sv_points = (sv_x,sv_y)
-#
-##Generate an array of x-points at which to fit the models
-#x_vals = np.linspace(0,max(sv_x),100)
-#
-##The exponential model parameters
-#sill = 15000
-#rng = 10
-#nugget = 0
-#gram_type = 'COV'
-##Fit the exponential model
-#model_y = fit_exponential(x_vals,sill,rng,nugget,gram_type)
-##Store the model x and y values
-#model = (x_vals,model_y)
-##Define the title and generate the plot
-#title = 'exponential model fit\nN={}'.format(N)
-#plot_model_fit(sv_points,model,labels,title)
-
-target = (7,14)
-
-dist = dist_to_target(data,x,y,target)
-dist_mat = gen_dist_matrix(data,x,y)
 
 #The exponential model parameters
 sill = 15
@@ -102,32 +53,70 @@ rng = 10
 nugget = 0
 gram_type = 'SV'
 
+#Add the parameters to the model
 model = FIT_EXPONENTIAL(sill,rng,nugget,gram_type)
-cij = model.fit(dist_mat)
-C_ij = fit_exponential(dist_mat,sill,rng,nugget,gram_type)
-n_pts = C_ij.shape[0]
-C_ij = np.row_stack((C_ij,np.ones(n_pts)))
-C_ij = np.column_stack((C_ij,np.ones(n_pts+1)))
-C_ij[-1,-1]=0
-C_ij = np.matrix(C_ij)
 
+#Set the test target
+target = [(7,14)]
+#Run the ordinary kriging algorithm on the test points
+OK = ORDINARY_KRIGING(model,data,x,y)
+Z,EV,weights = OK.estimate(target)
+#Convert the weights list to a matrix
+weights = np.matrix(weights).T
+#Convert to a dataframe
+df = pd.DataFrame(np.round(weights,decimals=3),columns=target)
+df['x'] = data[x]
+df['y'] = data[y]
+df.to_csv('weights_out.csv')
+
+#Generate the meshgrid
 xx,yy = make_meshgrid(data[x],data[y],h=0.2)
-
+#Convert the grid points to a list of x,y tuples
 grid_points = list(zip(xx.ravel(),yy.ravel()))
-Z = []
-EV = []
 
-for target in grid_points:
-    target_dist = np.matrix(dist_to_target(data,x,y,target))
-    C_io = fit_exponential(target_dist,sill,rng,nugget,gram_type)
-    C_io = np.row_stack((C_io.T,[[1]]))
-    W = np.linalg.solve(C_ij,C_io)
-    prediction = np.matrix(data['val'])*W[:-1,:]
-    Z.append(prediction[0,0])
+#Run the ordinary kriging algorithm
+Z,EV,Weights = OK.estimate(grid_points)
 
+#Determine the dimensions of the output figures
+dx = np.max(xx)-np.min(xx)
+dy = np.max(yy)-np.min(yy)
+plot_x = 5
+plot_y = plot_x*dy/dx
 
-fig,ax = plt.subplots(figsize=(8,8))
-plot_contours(ax,Z,xx,yy,cmap=plt.cm.viridis,alpha=0.8)
+#Plot the predicted values
+fig,ax = plt.subplots(figsize=(plot_x,plot_y))
+#plt.title('Predicted Concentration')
+plt.xlabel('X')
+plt.ylabel('Y')
+N=30
+plot_contours(fig,ax,Z,xx,yy,N,cmap=plt.cm.viridis,alpha=0.8)
 ax.scatter(data[x],data[y],c='y',s=80,edgecolors='k')
 for i,txt in enumerate(data['val']):
-    plt.annotate(str(txt),(data[x][i],data[y][i]))
+    ax.annotate(str(txt),(data[x][i],data[y][i]))
+plt.savefig('predicted.png')
+
+#Plot the error variance
+fig,ax = plt.subplots(figsize=(plot_x,plot_y))
+#plt.title('Error Variance')
+plt.xlabel('X')
+plt.ylabel('Y')
+N=30
+plot_contours(fig,ax,EV,xx,yy,N,cmap=plt.cm.viridis,alpha=0.8)
+ax.scatter(data[x],data[y],c='y',s=80,edgecolors='k')
+for i,txt in enumerate(data['val']):
+    ax.annotate(str(txt),(data[x][i],data[y][i]))
+plt.savefig('error.png')
+
+
+#The exponential model parameters
+sill = 30000
+rng = 10
+nugget = 14
+gram_type = 'SV'
+
+#Run the ordinary kriging algorithm 
+Z,EV,Weights2 = ordinary_kriging(model,data,x,y,grid_points)
+
+#Check the difference in weights when the sill and nugget are changed
+diff = np.matrix(Weights)-np.matrix(Weights2)
+print('minimum weight difference: {} \nmaximum weight difference: {}'.format(diff.min(),diff.max()))

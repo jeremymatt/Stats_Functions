@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def cov(data,variables):
@@ -610,9 +611,10 @@ class FIT_EXPONENTIAL:
         self.gram_type = gram_type
         self.c1 = sill-nugget
         
-    def fit(self,x_vals):
+    def sample(self,x_vals):
         """
-        Fits an exponential model given parameters from the semivariogram
+        Samples from an exponential model given parameters from the 
+        semivariogram
         
         INPUTS
             x_vals - numpy array of 'x' values at which to calculate the model
@@ -623,78 +625,168 @@ class FIT_EXPONENTIAL:
             gram_type - the type of ___gram being generated ('SV','COV','COR')
         
         OUTPUTS
-            expon - the exponential model
+            model_vals - the model values at the input distances
         """
         
         exponent = np.exp(-3*np.abs(x_vals)/self.rng)
         
         if self.gram_type == 'SV':
             #calculate the model y-values
-            expon = self.nugget+self.c1*(1-exponent)
+            model_vals = self.nugget+self.c1*(1-exponent)
         elif self.gram_type == 'COV':
-            expon = self.c1*exponent
+            model_vals = self.c1*exponent
         elif self.gram_type == 'COR':
-            expon = self.c1*exponent/(self.sill)
+            model_vals = self.c1*exponent/(self.sill)
         else:
             print('ERROR - invalid gram type')
-            expon = np.nan
+            model_vals = np.nan
         
-        return expon
+        return model_vals
+    
+    
 
-def fit_gaussian(x_vals,sill,rng,nugget):
-    """
-    Fits an gaussian model given parameters from the semivariogram
+class FIT_GAUSSIAN:
+    def __init__(self,sill,rng,nugget,gram_type):
+        self.sill = sill
+        self.rng = rng
+        self.nugget = nugget
+        self.gram_type = gram_type
+        self.c1 = sill-nugget
+        
+    def sample(self,x_vals):
+        """
+        Samples from a gaussian model given parameters from the 
+        semivariogram
+        
+        INPUTS
+            x_vals - numpy array of 'x' values at which to calculate the model
+            sill - the point at which the semivariogram plateaus
+            rng - the point at which autocorrelation plateaus
+            nugget - the y-intercept of the model. The semivariance of samples 
+                    collected at very short distances
+            gram_type - the type of ___gram being generated ('SV','COV','COR')
+        
+        OUTPUTS
+            model_vals - the model values at the input distances
+        """
+        
+        exponent = np.exp(-3*np.abs(x_vals)/self.rng)
+        
+        
+        #calculate the term in the exponential
+        exponent = np.exp(-1*(np.sqrt(3)*np.abs(x_vals)/self.rng)**2)
+        
+        if self.gram_type == 'SV':
+            #calculate the model y-values
+            model_vals = self.nugget+self.c1*(1-exponent)
+        elif self.gram_type == 'COV':
+            model_vals = self.c1*exponent
+        elif self.gram_type == 'COR':
+            model_vals = self.c1*exponent/(self.sill)
+        else:
+            print('ERROR - invalid gram type')
+            model_vals = np.nan
+            
+        
+        return model_vals
     
-    INPUTS
-        x_vals - numpy array of 'x' values at which to calculate the model
-        sill - the point at which the semivariogram plateaus
-        rng - the point at which autocorrelation plateaus
-        nugget - the y-intercept of the model. The semivariance of samples 
-                collected at very short distances
-    
-    OUTPUTS
-        gauss - the gaussian model
-    """
-    #Calculate the partial sill
-    c1 = sill-nugget
-    #calculate the term in the exponential
-    term = -1*(np.sqrt(3)*np.abs(x_vals)/rng)**2
-    #calculate the model y-values
-    gauss = nugget+c1*(1-np.exp(term))
-    
-    
-    return gauss
+       
 
-def fit_spherical(x_vals,sill,rng,nugget):
-    """
-    Fits an spherical model given parameters from the semivariogram
+class FIT_SPHERICAL:
+    def __init__(self,sill,rng,nugget,gram_type):
+        self.sill = sill
+        self.rng = rng
+        self.nugget = nugget
+        self.gram_type = gram_type
+        self.c1 = sill-nugget
+        
+    def sample(self,x_vals):
+        """
+        Samples from a spherical model given parameters from the 
+        semivariogram
+        
+        INPUTS
+            x_vals - numpy array of 'x' values at which to calculate the model
+            sill - the point at which the semivariogram plateaus
+            rng - the point at which autocorrelation plateaus
+            nugget - the y-intercept of the model. The semivariance of samples 
+                    collected at very short distances
+            gram_type - the type of ___gram being generated ('SV','COV','COR')
+        
+        OUTPUTS
+            model_vals - the model values at the input distances
+        """
+        
+        #calculate the term in the exponential
+        term = 1.5*np.abs(x_vals)/self.rng-0.5*(np.abs(x_vals)/self.rng)**3
+        
+        if self.gram_type == 'SV':
+            #calculate the model y-values
+            model_vals = self.nugget+self.c1*term
+            model_vals[x_vals>self.rng] = self.sill
+        elif self.gram_type == 'COV':
+            model_vals = self.c1*(1-term)
+            model_vals[x_vals>self.rng] = 0
+        elif self.gram_type == 'COR':
+            model_vals = self.c1*(1-term)/self.sill
+            model_vals[x_vals>self.rng] = 0
+        else:
+            print('ERROR - invalid gram type')
+            model_vals = np.nan
+            
+        
+        return model_vals
+
+
     
-    INPUTS
-        x_vals - numpy array of 'x' values at which to calculate the model
-        sill - the point at which the semivariogram plateaus
-        rng - the point at which autocorrelation plateaus
-        nugget - the y-intercept of the model. The semivariance of samples 
-                collected at very short distances
-    
-    OUTPUTS
-        spherical - the exponential model
-    """
-    #Calculate the partial sill
-    c1 = sill-nugget
-    #Calculate each individual term in the spherical model
-    term1 = 1.5*np.abs(x_vals)/rng
-    term2 = 0.5*(np.abs(x_vals)/rng)**3
-    #calculate the model y-values
-    spherical = nugget+c1*(term1-term2)
-    
-    #Find x-values that are beyond the range
-    beyond_range = x_vals>rng
-    #Find the indices of all points that are beyond the range
-    inds_beyond_range = [i for i,v in enumerate(beyond_range) if v]
-    #Replace all model y values at points beyond the range with the sill
-    spherical[min(inds_beyond_range):] = sill
-    
-    return spherical
+       
+
+class FIT_LINEAR:
+    def __init__(self,sill,rng,nugget,gram_type):
+        self.sill = sill
+        self.rng = rng
+        self.nugget = nugget
+        self.gram_type = gram_type
+        self.c1 = sill-nugget
+        
+    def sample(self,x_vals):
+        """
+        Samples from a linear model given parameters from the 
+        semivariogram
+        
+        INPUTS
+            x_vals - numpy array of 'x' values at which to calculate the model
+            sill - the point at which the semivariogram plateaus
+            rng - the point at which autocorrelation plateaus
+            nugget - the y-intercept of the model. The semivariance of samples 
+                    collected at very short distances
+            gram_type - the type of ___gram being generated ('SV','COV','COR')
+        
+        OUTPUTS
+            model_vals - the model values at the input distances
+        """
+        
+        #calculate the term in the exponential
+        term = np.abs(x_vals)/self.rng
+        
+        if self.gram_type == 'SV':
+            #calculate the model y-values
+            model_vals = self.nugget+self.c1*term
+            model_vals[x_vals>self.rng] = self.sill
+        elif self.gram_type == 'COV':
+            model_vals = self.c1*(1-term)
+            model_vals[x_vals>self.rng] = 0
+        elif self.gram_type == 'COR':
+            model_vals = self.c1*(1-term)/self.sill
+            model_vals[x_vals>self.rng] = 0
+        else:
+            print('ERROR - invalid gram type')
+            model_vals = np.nan
+            
+        
+        return model_vals
+
+
 
 def plot_model_fit(data,model,labels,title):
     """
@@ -741,16 +833,24 @@ def gen_dist_matrix(data,x,y):
     """
     Generates a distance matrix from each point to all other points
     """
-    
+    #Find the number of points in the dataset
     n_pts = data.shape[0]
+    #Initialize the distances matrix
     dist_mat = np.zeros([n_pts,n_pts])
     for i in range(n_pts):
+        #Extract the x,y values at the current start point
         x_i = data[x][i]
         y_i = data[y][i]
+        #For all points that have not been used as a start point, calculate 
+        #the distances.  Note that calculation of the diagonal (the distance 
+        #from a point to itself) is skipped as this distance is zero.
         for j in range(i+1,n_pts):
+            #Extract the x,y coordinates of the end point
             x_j = data[x][j]
             y_j = data[y][j]
+            #Calculate the distance between the two points
             dist = np.sqrt((x_i-x_j)**2+(y_i-y_j)**2)
+            #Add the distance to the matrix both above and below the diagonal
             dist_mat[i,j] = dist
             dist_mat[j,i] = dist
             
@@ -758,8 +858,8 @@ def gen_dist_matrix(data,x,y):
 
 #Source:
 #https://scikit-learn.org/0.20/auto_examples/svm/plot_iris.html
-def make_meshgrid(x, y, h=.02):
-    """Create a mesh of points to plot in
+def make_meshgrid(x, y, h=.02, buffer=1):
+    """Create a mesh of x,y coordinates
 
     Parameters
     ----------
@@ -771,16 +871,18 @@ def make_meshgrid(x, y, h=.02):
     -------
     xx, yy : ndarray
     """
-    x_min, x_max = x.min() - 1, x.max() + 1
-    y_min, y_max = y.min() - 1, y.max() + 1
+    #Find the min and max x,y extents to generate the grid over
+    x_min, x_max = x.min() - buffer, x.max() + buffer
+    y_min, y_max = y.min() - buffer, y.max() + buffer
+    #make the grid of points
     xx, yy = np.meshgrid(np.arange(x_min, x_max, h),
                          np.arange(y_min, y_max, h))
     return xx, yy
 
 
-#Source:
+#Based on:
 #https://scikit-learn.org/0.20/auto_examples/svm/plot_iris.html
-def plot_contours(ax, Z, xx, yy, **params):
+def plot_contours(fig,ax, Z, xx, yy,N, **params):
     """Plot the decision boundaries for a classifier.
 
     Parameters
@@ -791,7 +893,114 @@ def plot_contours(ax, Z, xx, yy, **params):
     yy: meshgrid ndarray
     params: dictionary of params to pass to contourf, optional
     """
+    #convert Z to a numpy matrix
     Z = np.matrix(Z)
+    #Reshape to nxn matrix
     Z = Z.reshape(xx.shape)
-    out = ax.contourf(xx, yy, Z, **params)
-    return out       
+    #Plot contours
+    out = ax.contourf(xx, yy, Z, N, **params)
+    #Add axes for the colorbar
+    divider = make_axes_locatable(ax)
+    #Add a new axis for the colorbar
+    cax = divider.append_axes('right', size='5%', pad=0.05)
+    #Plot the colorbar
+    fig.colorbar(out, cax=cax, orientation='vertical')
+    return out    
+
+
+class ORDINARY_KRIGING:
+    def __init__(self,model,data,x,y):
+        """
+        Train the model by storing parameters for later use and by 
+        populating data structures that are constant for all estimation
+        points
+        
+        INPUTS
+            model - The model object to draw samples from
+            data - the data matrix
+            x - the column name of the x-values
+            y - the column name of the y-values
+        """
+        self.sill = model.sill
+        self.data = data
+        self.x = x
+        self.y = y        
+        self.model = model
+        
+        
+        #Generate the distance matrix
+        self.dist_mat = gen_dist_matrix(data,x,y)
+        #Calculate the covariance matrix
+        self.C_ij = self.model.sample(self.dist_mat)
+        #Find the number of points
+        n_pts = self.C_ij.shape[0]
+        #Add a row of ones at the bottom
+        self.C_ij = np.row_stack((self.C_ij,np.ones(n_pts)))
+        #Add a column of zeros to the right
+        self.C_ij = np.column_stack((self.C_ij,np.ones(n_pts+1)))
+        #Set the lower right to zero
+        self.C_ij[-1,-1]=0
+        #Convert to matrix
+        self.C_ij = np.matrix(self.C_ij)
+        self.C_ij_inv = np.linalg.inv(self.C_ij)
+            
+    def estimate(self,grid_points):
+        """
+        Peforms ordinary kriging
+        
+        INPUTS
+            grid_points - a list of x,y pairs for data points
+            
+        OUTPUTS
+            Z - the predicted values at the target points
+            EV - the error variance at the target points
+        """
+        
+        #Init empty lists to hold Z and EV values
+        Z = []
+        EV = []
+        Weights = []
+        
+        #Loop through each grid point
+        for target in grid_points:
+            #Generate distances from the target to all all the fixed points
+            target_dist = np.matrix(dist_to_target(self.data,self.x,self.y,target))
+            #Get the samples from the model
+            C_io = self.model.sample(target_dist)
+            #Add the 1 for the lagrange parameter
+            C_io = np.row_stack((C_io.T,[[1]]))
+            #Calculate the weights
+            W = self.C_ij_inv*C_io
+            #Extract the lagrange parameter
+            mu = W[-1]
+            #Calculate the prediction for the target (dot product of values
+            #and weights)
+            prediction = np.matrix(self.data['val'])*W[:-1,:]
+            
+            #Calculate the error variance based on gram type
+            if self.model.gram_type == 'SV':
+                #Calculate estimated C_io values
+                C_io_est = self.C_ij[:-1,:-1]*W[:-1]-mu
+                #Calculate the error_variance for the target
+                error_var = C_io_est.T*W[:-1]+mu
+            elif self.model.gram_type == 'COV':
+                #Calculate estimated C_io values
+                C_io_est = self.C_ij[:-1,:-1]*W[:-1]+mu
+                #Calculate the error_variance for the target
+                error_var = self.sill - (C_io_est.T*W[:-1]+mu)
+            elif self.model.gram_type == 'COR':
+                #Calculate estimated C_io values
+                C_io_est = self.C_ij[:-1,:-1]*W[:-1]+mu
+                #Calculate the error_variance for the target
+                error_var = self.sill*(1 - (C_io_est.T*W[:-1]+mu))
+            else:
+                print('Invalid gram type')
+                error_var = np.nan
+                
+            #Add to the lists
+            Z.append(prediction[0,0])
+            EV.append(error_var[0,0])
+            Weights.append(W.T.tolist()[0])
+            
+        return Z,EV,Weights
+        
